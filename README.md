@@ -38,3 +38,238 @@ postcss-loader：打包时自动添加厂商前缀，-webkit-，mozila 等
 iconfont 里面的字体文件 eot，svg 等需要用 file-loader 来打包。
 
 其实还有很多其他文件类型的静态资源，更多去看：[官方文档-guides-asset management](https://www.webpackjs.com/guides/asset-management/)
+
+### 3-5 plugin
+
+plugin: 可以在 webpack 运行到某个时刻的时候，帮你做一些事情。（有点类似生命周期函数。）
+
+HtmlWebpackPlugin 插件：会在打包结束后，自动生成一个 html 文件，并把打包生成的 js 自动引入到这个 html 文件中。[更多](https://www.webpackjs.com/plugins/html-webpack-plugin/)
+
+CleanWebpackPlugin 插件：默认情况下，此插件将 output.path 的内容在打包前删除。
+
+### 3-6 entry 与 output
+
+如果 output 写死 output.filename 为'main.js',当 entry 有两个入口文件时，就会报错，所以要使用 output 占位符。
+
+webpack 打包完之后会将 js 注入到 html 模板，如果想要引入的 js 带上 cdn 地址，就在 output.publicPath 配置 cdn 的地址。
+
+[阅读文档相关-配置-entry and contex/output](https://www.webpackjs.com/configuration/entry-context/)
+
+[阅读文档相关-指南 guides-管理输出](https://www.webpackjs.com/guides/output-management/)
+
+### 3-7 sourceMap
+
+假如我们运行打包之后的文件，发现有 js 报错，现在知道 dist 目录下 main.js 文件 96 行出错
+
+sourceMap 它是一个**映射关系**，他知道 dist 目录下 main.js 文件 96 行实际上对应的是 src 目录下 index.js 文件中的第一行。
+
+当前其实是 src 目录下 index.js 文件中的第一行出错了
+
+打开 sourceMap 方法：在 webpack.config 里的 devtool 字段设置为'source-map'。
+
+inline-source-map：使用‘source-map’打包时会在 dist 出现 map.js 文件（映射关系），当使用 inline-source-map 时，会直接打包到 js 文件里面，base64 的形式。
+
+cheap-inline-source-map：加了 cheap 之后就只会提示第几行出错，如果不加，会精确到第几行第几列。这样可以提高 build 和 rebuild 的速度。
+
+cheap-module-source-map：加了 module 之后，不仅只管自己的业务代码错误，像一些第三方枯，loader 的错误也会管。
+
+eval：build 执行速度最快，性能最快，也可以提示源代码的第几行错误，但它时通过在打包的 js 里面执行 eval 语句，生成对应的映射关系，缺点：如果过于复杂的逻辑可能不太准确
+
+**总结**：
+
+- dev 模式，cheap-module-eval-source-map
+- prod 模式，cheap-module-source-map
+
+### 3-8 webpackDevServer
+
+如果我们想要代码改变之后，自动打包，不需要每次都手动打包，有三种方法：
+
+- webpack --watch
+
+  这里有一个坑：CleanWebpackPlugin 的 cleanStaleWebpackAssets 属性要设置为 false，不然 index.html 会丢失。
+
+  cleanStaleWebpackAssets： 删除陈旧的 webpack 资源。
+
+  在 watch 模式下，CleanWebpackPlugin 里 cleanStaleWebpackAssets 要设置为 false ，防止监听到改变时把没有改变的文件给清除了。
+
+- webpackDevServer（需要另外安装 webpack-dev-server）
+
+  使用方法：webpackConfig.devServer 要设置指定根路径，安装之后，运行命令 webpack-dev-server。
+
+  webpackConfig.devServer 常用属性：
+
+  - contentBase：指定 server 根路径
+  - port：端口号
+  - open：自动打开浏览器
+  - proxy：跨域代理，像 vue，react 的脚手架之所以支持，是因为其底层是利用 webpack-dev-server，而 webpack-dev-server 本身就支持。
+
+  webpackDevServer 对比--watch，不仅会监听文件重新打包，而且会重新刷新浏览器。
+
+- 自己写一个 server.js，使用命令 node server.js 来监听文件变化并重新打包。
+
+  主要思路：在 server.js 建立一个 express 或者 koa2 服务，通过 webpack 方法生成一个编译器（本质就是在 node 中使用 webpack，我们上面都是在命令行使用 webpack），然后服务通过中间件 webpackDevMiddleware 调用 webpack 编译器
+
+### 3-9 热模块替换 HMR
+
+背景：我们上面通过 webpack-dev-server，当监听到有文件变化时，会重新打包刷新浏览器。假如我们只改变了某个 css 文件，那是否可以就更新 css 资源文件，其他保持不变？这就是 HMR 的作用。
+
+使用方法：
+
+- 1.webpack.config.devServer.hot 开启为 true
+- 2.webpack.config.plugins 添加 new webpack.HotModuleReplacementPlugin()
+
+HMR 使用场景：
+
+- 1.引入的 css 发生改变时，css 资源替换，js 不重新加载。
+- 2.假设 index.js 引入了 a.js 和 b.js，当 b.js 改变时，如果想不改变 a.js，需要在 index.js 里加判断
+
+```
+if (module.hot) {
+    // 监听的js资源文件
+  module.hot.accept('./number.js', () => {
+    // 重新执行number.js的方法或者做其他处理
+  })
+}
+```
+
+！这里可能有一个疑惑：为什么 js 需要加一段这样的判断，css 不用？原因是 css-loader 内置帮我们写了，而我们平时用 vue 开发时，也不用写是因为 vue-loader 内置写了。
+
+总结：只要使用 HMR，原则上都需要写 module.hot 的判断，只是现在很多框架都写好了，不需要我们亲自写。
+
+[更多 HMR 学习](https://www.webpackjs.com/guides/hot-module-replacement/)
+
+### 3-10 使用 babel 处理 es6 语法
+
+1.安装 babel-loader @babel/core
+
+2.设置 rules
+
+```
+rules: [
+    {
+        test: /\.js$/,
+        exclude: /node_modules/,
+        loader: 'babel-loader',
+        options: {
+            presets: ['@babel/preset-env'],
+        },
+    },
+]
+```
+
+以上两步只是打通了 webpack 和 babel 的桥梁，要将 es6 转为 es5，还需要安装 @babel/preset-env 翻译语法，另外有一些 es6 的语法比如 primise 等，在低版本的浏览器是没有的，仅仅翻译还是不行，还需要安装@babel/polyfill 做一个补充。
+
+当我们在 js 里加入了 import '@babel/polyfill'，它会自动的把所有补充的代码打包进去。如果我们只想要打包用到的代码，比如只想要 promise 的实现打包进去，我们需要在 babel-loader 配置 useBuiltIns: 'usage'。
+
+```
+{
+    test: /\.js$/,
+    exclude: /node_modules/,
+    loader: 'babel-loader',
+    options: {
+        presets: [
+        [
+            '@babel/preset-env',
+            {
+                useBuiltIns: 'usage',
+            },
+        ],
+        ],
+    },
+},
+```
+
+我们还可以在 babel-loader 设置，浏览器的要求，当大于某个版本才进行 env 语法翻译
+
+```
+{
+        test: /\.js$/,
+        exclude: /node_modules/,
+        loader: 'babel-loader',
+        options: {
+          presets: [
+            [
+              '@babel/preset-env',
+              {
+                targets: {
+                  chrome: '67',
+                  // safari...
+                  // firefox...
+                },
+                useBuiltIns: 'usage',
+              },
+            ],
+          ],
+        },
+      },
+```
+
+当我们在开发 ui 库或者组件时，不建议在 js 中引入 import '@babel/polyfill'来打包，因为@babel/polyfill 会在全局加上一些变量，造成污染。我们可以这样做：
+
+1.安装 @babel/plugin-transform-runtime 和 @babel/runtime
+
+2.修改 babel-loader（如果使用了 corejs：2 的配置，还要安装@babel/runtime-corejs2）
+
+```
+{
+    test: /\.js$/,
+    exclude: /node_modules/,
+    loader: 'babel-loader',
+    options: {
+        // presets: [
+        //   [
+        //     '@babel/preset-env',
+        //     {
+        //       targets: {
+        //         chrome: '67',
+        //       },
+        //       useBuiltIns: 'usage',
+        //     },
+        //   ],
+        // ],
+        plugins: [
+            [
+              '@babel/plugin-transform-runtime',
+              {
+                corejs: 2,
+                helpers: true,
+                regenerator: true,
+                useESModules: false,
+              },
+            ],
+        ],
+    },
+},
+```
+
+**总结：如果是写业务代码，可以用 preset-env。如果是开发库的代码，使用@babel/plugin-transform-runtime，会以闭包等形式注入，不会污染全局。**
+
+babel-loader 的 options 可能会配置很长，我们可以在根目录创建一个.babelrc 文件
+
+```
+// .babelrc
+{
+  "plugins": [
+    [
+      "@babel/plugin-transform-runtime",
+      {
+        "corejs": 2,
+        "helpers": true,
+        "regenerator": true,
+        "useESModules": false
+      }
+    ]
+  ]
+}
+```
+
+```
+// webpack.config.js
+...
+    {
+        test: /\.js$/,
+        exclude: /node_modules/,
+        loader: 'babel-loader',
+    }
+...
+```
