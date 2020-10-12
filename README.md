@@ -244,6 +244,8 @@ rules: [
 
 **总结：如果是写业务代码，可以用 preset-env。如果是开发库的代码，使用@babel/plugin-transform-runtime，会以闭包等形式注入，不会污染全局。**
 
+！另外，如果用了 preset-env，就不需要手动引入 import ployfill 了。
+
 babel-loader 的 options 可能会配置很长，我们可以在根目录创建一个.babelrc 文件
 
 ```
@@ -273,3 +275,85 @@ babel-loader 的 options 可能会配置很长，我们可以在根目录创建�
     }
 ...
 ```
+
+---
+
+### 4-1 Tree Shaking
+
+翻译中文就是摇树，将没用到的资源摇掉（剔除掉，不打包到 js 里去）。
+
+比如一个工具类 js 导出很多工具函数，我们只 import { a } from 'util.js'，那么 util.js 里面的其他工具函数就不会被打包进去。
+
+**！！ Tree Shaking 只支持 ES Module 模式的引入（因为这是静态引入），require 不支持（动态）。**
+
+dev mode 环境下使用的话，需要在 webpack.config 设置 optimization.usedExports 为 true,同时去 package.json 设置
+
+```
+"sideEffects": ["@babel/polly-fill","*.css"...],
+```
+
+因为像一些模块没有导出内容的，比如 import './style.css' ，tree shaking 会判断它导出什么，引用了什么，所以对于没有导出东西，tree shaking 会去掉，所以我们要在 package.json 里设置不需要 tree shaking 的模块。
+
+dev 环境开了 tree shaking 也不会去掉多余的代码，因为会对 sourcemap 有影响，影响我们的调试开发。
+
+prod 正式环境默认开启 tree shaking，不需要手动设置 optimization.usedExports。
+
+### 4-2 dev 和 prod
+
+差异：dev sourmap 很全，一般代码不压缩。
+
+区分 dev 和 prod 环境，修改 package.json
+
+```
+ "scripts": {
+    "dev": "webpack-dev-server --config webpack.dev.js",
+    "build": "webpack --config webpack.prod.js"
+  },
+```
+
+改造目录结构：
+
+- 新增三个文件：
+
+```
+webpack.prod.js
+webpack.dev.js
+webpack.common.js //存放上面两个配置文件共同的部分
+```
+
+- 安装 webpack-merge
+
+```
+// webpack.prod.js
+const { merge } = require('webpack-merge')
+const commonConfig = require('./webpack.common.js')
+
+const config = {
+  mode: 'production', // 默认pro
+  devtool: 'cheap-module-source-map',
+}
+
+module.exports = merge(commonConfig, config)
+
+```
+
+### 4-3 webpack 与代码分割（code splitting）
+
+场景：
+
+// index.js
+
+```
+import _ from 'lodash'
+
+console.log(_.join(['a', 'b', 'c'], '**'))
+// 此处省略10万行业务
+console.log(_.join(['a', 'b', 'c'], '**'))
+```
+
+假设 lodash 大小为 1MB,index.js 业务代码大小为 1MB，打包之后就 2MB
+
+出现问题：
+
+- 打包文件很大，加载时间长
+- 修改业务逻辑之后重新访问页面，又要加载 2MB 的内容
