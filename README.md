@@ -358,6 +358,32 @@ console.log(_.join(['a', 'b', 'c'], '**'))
 - 打包文件很大，加载时间长
 - 修改业务逻辑之后重新访问页面，又要加载 2MB 的内容
 
+解决方案：
+
+把 main.js 拆成 lodash.js(1MB),main.js(1MB)，当页面业务逻辑发生变化时，只要加载 main.js 即可（1MB）.
+
+### 4-4 代码分割（code splitting）
+
+开启方法：
+
+```
+//webpack.config
+...
+optimization: {
+    splitChunks: {
+      chunks: "all",
+    },
+  },
+...
+```
+
+总结：
+
+- 代码分割其实和 webpack 无关，只是 webpack 做代码分割很容易
+- 两种代码分割：
+  - 同步代码：顶部 import（ES Module）进来的，去 webpack.config 配置。
+  - 异步代码：通过 import 方法异步加载的资源或模块，无需配置，即会放到新文件中。
+
 ### 4-5 splitChunksPlugin 配置详解
 
 webpack 内部实现代码分割其实就是用了 splitChunksPlugin 这个插件。
