@@ -357,3 +357,84 @@ console.log(_.join(['a', 'b', 'c'], '**'))
 
 - 打包文件很大，加载时间长
 - 修改业务逻辑之后重新访问页面，又要加载 2MB 的内容
+
+### 4-5 splitChunksPlugin 配置详解
+
+webpack 内部实现代码分割其实就是用了 splitChunksPlugin 这个插件。
+
+Magic Comment（魔法注释）：设置异步加载模块的名字
+
+```
+function getComp() {
+  return import(/* webpackChunkName:"lodash" */ 'lodash').then(
+    ({ default: _ }) => {
+      var elem = document.createElement('div')
+      elem.innerHTML = _.join(['123', '456'], '-')
+      return elem
+    }
+  )
+}
+```
+
+以上代码打包后生成 /dist/vendors~lodash.js
+
+如果想要去掉文件名前面的 vendors，可以在 webpack.config 配置
+
+```
+ optimization: {
+    splitChunks: {
+      chunks: 'all',
+      cacheGroups: {
+        vendors: false,// 去掉文件名前面的 vendors
+        default: false,// 去掉文件名前面的 vendors
+      },
+    },
+  },
+```
+
+实际上，splitChunks 有一份默认配置,当我们 splitChunks: {}为空时，就是读取默认
+
+```
+// 默认
+splitChunks: {
+    chunks: "async",
+    minSize: 30000, // 30kb
+    minChunks: 1,
+    maxAsyncRequests: 5,
+    maxInitialRequests: 3,
+    automaticNameDelimiter: '~',
+    name: true,
+    cacheGroups: {
+      vendors: {
+          test: /[\\/]node_modules[\\/]/,
+          priority: -10,
+          filename: 'vendors.js' // 如果想组的所有东西都打包在一个js，就设置这个
+      },
+      default: {
+          minChunks: 2,
+          priority: -20,
+          reuseExistingChunk: true
+      }
+    }
+}
+```
+
+chunks 和 cacheGroups 一般配合使用
+
+chunks：async 只对异步代码生效，设置为 all，就可以打包同步代码，但还要在 cacheGroups.vendors 设置，
+
+cacheGroups（缓存组）: 就是一个分组，vendors 就是检测引入的模块是不是 node_modules 的，如果是，就放进这个组，文件名前加组名。
+
+cacheGroups.priority 数值越大，优先级越高。当一个文件符合两个组时，按优先级来打包到对应的组
+
+cacheGroups.reuseExistingChunk 如果符合代码分割的代码之前已经被打包到某个文件里，设置为 true 就不会重复打包，直接使用之前的
+
+minChunks：至少被引入了多少次，才代码分割
+
+maxAsyncRequests：同时加载的模块数，最多的数量，超过就不会代码分割。
+
+maxInitialRequests：入口文件做代码分割，最多的数量，超过就不会代码分割。
+
+automaticNameDelimiter：组和文件之间的连接符
+
+[更多阅读](https://www.webpackjs.com/plugins/split-chunks-plugin/)
