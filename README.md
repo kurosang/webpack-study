@@ -455,7 +455,7 @@ cacheGroups.priority 数值越大，优先级越高。当一个文件符合两�
 
 cacheGroups.reuseExistingChunk 如果符合代码分割的代码之前已经被打包到某个文件里，设置为 true 就不会重复打包，直接使用之前的
 
-minChunks：至少被引入了多少次，才代码分割
+minChunks：至少被引入了多少次，才代码分割。（就是打包之后的 chunk 里面有引入到的，符合这个次数才代码分割）
 
 maxAsyncRequests：同时加载的模块数，最多的数量，超过就不会代码分割。
 
@@ -464,3 +464,70 @@ maxInitialRequests：入口文件做代码分割，最多的数量，超过就�
 automaticNameDelimiter：组和文件之间的连接符
 
 [更多阅读](https://www.webpackjs.com/plugins/split-chunks-plugin/)
+
+### 4-6 lazy loading 懒加载和 chunk 是什么？
+
+懒加载不是 webpack 有的概念，而是 ES 里面的概念。webpack 只是可以识别 import 这种语法，对它进行一个代码分割。
+
+代码分割出的每个 js 就是一个 chunk
+
+### 4-7 打包分析，preloading，prefetching
+
+**打包分析**
+
+[webpack analyse 仓库](https://github.com/webpack/analyse)
+
+使用方法：
+
+- 在 webpack 的打包语句后面加上 `--json > stats.json`
+
+- 生成文件之后，打开 webpack analyse 仓库里面网址（科学上网），然后上传 stats.json 文件
+
+[更多分析工具](https://webpack.js.org/guides/code-splitting/#bundle-analysis)
+
+**代码使用率 code coverage**
+
+代码分割，抽出共有的 chunk 实际是做一个缓存，第二次加载的时候不需要重新加载。但如果想要提高第一次加载的速度，就不应该看这个。
+
+要做高性能的前端应该不仅注重缓存，还有代码的使用率。通过 chrome F12，command+Shift+P 可以看到，每个文件代码的使用率。
+
+如果我们可以做到把没有用到的代码异步加载，那么网页首屏加载的速度就会提升，所以 webpack 默认代码分割是异步 async，而不是 all 全部，因为全部只能做到缓存的作用
+
+**Prefetching/Preloading**
+
+使用方法（魔法注释）：
+
+```
+//...
+import(/* webpackPrefetch: true */ 'LoginModal');
+
+//...
+import(/* webpackPreload: true */ 'ChartingLibrary');
+```
+
+区别：
+
+与 Prefetching 相比，Preloading 指令有很多区别：
+
+- 预加载的块开始并行于父块加载。父块完成加载后，预取的块开始。
+- 预加载的块具有中等优先级，可以立即下载。浏览器空闲时，将下载预提取的块。
+- 父块应立即请求预加载的块。预取的块可以在将来的任何时候使用。
+- 浏览器支持不同。
+
+### 4-8 css 代码分割
+
+`webpack.config.output.filename` 是 entry 入口文件打包出来之后走这个字段
+`webpack.config.output.chunkFilename` 是 非入口文件，入口文件引入的文件（间接引用）
+
+一般 css 会打包到 js 文件里面，即 css in js。
+
+MiniCssExtractPlugin：该插件将 CSS 提取到单独的文件中。它为每个包含 CSS 的 JS 文件创建一个 CSS 文件。（一般用于生产，因为 dev 的热更新支持不太好）
+
+使用方法：
+
+- 修改 prod 的 webpack 配置
+- 修改 package.json 的 sideEffects，treeskaing 关掉 css 文件
+
+如果用于生产环境，还需要安装插件 css-minimizer-webpack-plugin 进行 css 合并和压缩。
+
+[更多](https://webpack.js.org/plugins/mini-css-extract-plugin/)
