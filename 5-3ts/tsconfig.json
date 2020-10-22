@@ -1,0 +1,8 @@
+{
+  "compilerOptions": {
+    "outDir": "./dist",
+    "module": "es6", //只用esmodule方式引入
+    "target": "ES5",
+    "allowJs": true
+  }
+}
