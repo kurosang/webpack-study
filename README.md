@@ -678,3 +678,56 @@ PWA 实际底层用到一个 service worker,可以理解为一个另类的缓存
 如何查找这个库有没有对应的@types？
 
 [TypeSearch](https://www.typescriptlang.org/dt/search?search=)
+
+### 5-4 proxy 请求转发
+
+一般 axios 请求写的是相对路径`（/api/list）`，不是绝对路径`（http://dada.com/api/list）`
+
+使用 webpack 的 devServer 里面的 proxy 可以做请求转发，代理域名，一般用来解决跨域。
+
+### 5-5 eslint 结合 webpack
+
+eslint 有三种方法：
+
+- 1.使用 vscode 插件，编辑器会红线报错
+- 2.yarn 安装 eslint，运行 npx eslint，报错会出现在命令行
+- 3.安装 eslint 和 eslint-loader，在 webpack 的 devServer 配置 overlay 为 true，在匹配 js 的 loader 加上 eslint-loader，当报错的时候，就会在网页弹出遮罩层。vue 很多报错就是这个原理。（但一般不这样做，因为降低打包速度）
+
+### 5-6 webpack 优化 1
+
+- 1.跟上技术的迭代（node，npm，yarn）
+
+  webpack 内部也是使用 node 这些的，如果 webpack/node 这些升到最新，打包速度就是最快。
+
+- 2.在尽可能少的模块上应用 loader（loader 作用范围变少）
+
+  - test：匹配对应后缀结尾的文件
+  - exclude：排除某个目录
+  - include: path.resolve(\_\_dirname,'../src/'),源代码目录下才使用 loader
+
+- 3.Plugin 尽可能精简并确保可靠
+
+  官方认证过，社区认可的，比较好的插件，
+
+- 4.resolve 参数合理配置
+
+```
+// webpack config
+
+module.exports = {
+  entry..
+  resolve: {
+    extensions: ['.css','.png','.js','.jsx'],
+    mainFiles:['index','child'],
+    alias:{
+      demo: path.resolve(__dirname, '../src/child')
+    }
+  }
+}
+```
+
+配置了 extensions 之后，import 引入的文件就可以不写后缀，它会自己去匹配，不可以配太多，因为会有损耗，相当于每次都去 extensions 都会去循环看有没有匹配上
+
+配置了 mainFiles 之后，import 就可以简写到文件夹，不用写具体文件的名字，因为配置了这个之后，会匹配该文件夹下，mainFiles 有的字段所开头的文件
+
+配置了 alias 之后，可以直接`import child from 'demo'`,相当于是配置了一个别名，代替这个引入的路径。当文件在很多层的文件夹里，可以配置这个，简化引入的路径
