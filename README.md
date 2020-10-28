@@ -731,3 +731,43 @@ module.exports = {
 配置了 mainFiles 之后，import 就可以简写到文件夹，不用写具体文件的名字，因为配置了这个之后，会匹配该文件夹下，mainFiles 有的字段所开头的文件
 
 配置了 alias 之后，可以直接`import child from 'demo'`,相当于是配置了一个别名，代替这个引入的路径。当文件在很多层的文件夹里，可以配置这个，简化引入的路径
+
+### 5-7 webpack 优化 2
+
+- 5. 使用 DllPlugin 提高打包速度（目标第三方模块只打包一次，引入第三方模块的时候，要去使用 dll 文件注入）
+
+  1.新建文件 webpack.dll.js,入口设置要 dll 的第三方模块，将第三方库打包成一个 dll 文件下的文件，通过 library 将它变成全局变量暴露出去。
+
+  2.在 webpack.dll.js 中配置 new webpack.DllPlugin 插件，对暴露的模块代码做一个分析，生成一个 manifest.json 的映射文件
+
+  3.将 library 引入到 index.html，通过 add-asset-html-webpack-plugin 插件
+
+  4.在 webpack.common 中，配置 webpack.DllReferencePlugin 插件，这是引用插件，配置 manifest，就会自动找对应的映射关系。即它会去 manifest.json 里看看是否有，有的话就去全局拿，不从 node_module 拿。
+
+总结：为什么要使用 DllPlugin，因为正常，我们每次打包，碰到第三方模块，就会从 node_module 里面拿，然后打包到我们的 js 里面。这些库，基本不会变，所以我们第一次打包就把这些库打包成一个文件，下次直接拿这个文件，而不用去 node_module 拿来再打包。打包速度就会提高。
+
+### 5-8 webpack 优化 3
+
+- 6. 控制包文件大小
+
+  1)如果没有 treeShaking，减少没有使用的库的引入，不然会出现冗余代码
+
+  2)splitChunks 对代码进行拆分，也可以有效提高 webpack 打包速度
+
+- 7. thread-loader，parallel-webpack，happypack 多进程打包
+
+webpack 默认是通过 nodejs 运行的，所以是个单线程单进程的打包过程。我们也可以借助 node 的多进程进行打包，具体配置几个 cpu 打包，具体看业务。
+
+- 8. 合理使用 sourceMap
+
+- 9. 结合 stats 分析打包结果，发现哪个地方耗时多，针对优化
+
+- 10.开发环境内存编译，webpack Devserver 不生成 dist 目录，内存读取肯定快
+
+- 11.开发环境无用插件剔除，有些比如线上才用的压缩，开发就不需要使用。
+
+### 5-9 多页面打包配置
+
+多页面配置其实配置多个 HtmlWebpackPlugin 插件。
+
+**到最后 webpack 的配置不仅仅是写配置，而是通过 node，做一些逻辑的判断，自动化的操作**
