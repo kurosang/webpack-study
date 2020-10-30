@@ -2,6 +2,21 @@
 
 webpack 学习记录，希望手打一次记忆深刻点。
 
+### 2
+
+webpack 三种方式
+
+- webpack index.js（全局）
+- npx webpack index.js
+- npm run bundle (在 package.json 里 script 输入准备执行的命令)
+
+输出部分描述
+
+- Hash 每次打包的唯一值
+- Chunks 每个 js 文件对应的 id
+- Chunk Name 每个 js 文件对应的名字
+- mode production:被压缩代码，development：不被压缩
+
 ### 3-1 什么是 loader？
 
 loader 其实就是打包方案，当 webpack 遇到不会打包的文件，就会出动 loader。webpack 默认是处理打包 js 模块，它不知道 jpg 等其他类型怎么办，所以我们就得在配置文件配置，告诉它怎么办。写在配置文件中 module 对象下的 rules[]中。
@@ -875,3 +890,39 @@ debug 命令其实和 build 命令一样，只是 debug 命令是用 node 显示
 运行 debug 命令后，打开 chrome 的控制台，点击 node 图标。(这个其实就是 node 的调试工具)
 
 我们在需要查看的地方前打一个断点`debugger`
+
+### 6-3 手动写一个 bundle 实现类似 webpack 的部分功能
+
+一。首先，对入口文件进行分析：
+
+安装
+
+@babel/parser : parser.parse 把字符串分析生成的其实就是 AST,抽象语法树
+
+@babel/traverse : traverse 提取 ImportDeclaration 类型 AST,收集依赖的地址
+
+@babel/core：babel.transformFromAst 转化 ast
+
+@babel/preset-env：需要借助这个做转化，es6->ES5
+
+这一步主要是一个 moduleAnalyser 的函数，就是分析模块（文件）
+
+二。其他模块的信息分析
+
+**Dependencies Graph(依赖图谱)**
+
+makeDependenciesGraph 函数，通过调用 moduleAnalyser，生成一个只有入口文件一项的数组 graphArray，然后分析入口文件的 dependencies，循环它，调用 moduleAnalyser，将分析结果推入到 graphArray 里面
+
+三。将 dependencies 生成真正可以在浏览器运行的代码
+
+### 7vue-cli3
+
+vue-cli3 里面直接把 webpack 封装到里面，我们不可以直接接触修改 webpack 的配置，但是 vue-cli3 封装了一套自己的配置来修改 webpack 配置。简单来说就是他把繁琐的 webpack 配置再做了一层封装。
+
+[vue-cli](https://cli.vuejs.org/zh/config/#vue-config-js)
+
+因此当我们用 vue 开发时就不需要懂 webpack 了。直接看文档，但要知道，理论上是 vue-cli 帮我们做了转化。
+
+可能会有一个疑问，如果 vue-cli 的 api 满足不了我们的需求，我们想要修改 webpack 的配置怎么办？？
+
+答案是 vue-cli3 里面的 configureWebpack 字段，允许我们直接写 webpack 配置，打包的时候会 merge 过去。
